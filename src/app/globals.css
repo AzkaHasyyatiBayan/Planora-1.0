@@ -1,26 +1,187 @@
 @import "tailwindcss";
 
 :root {
+  /* Background dan teks */
   --background: #ffffff;
-  --foreground: #171717;
+  --background-dark: #ffffff; /* tetap putih agar konsisten */
+
+  --foreground: #58508d; /* ungu elegan */
+  --foreground-muted: #8888aa; /* versi lebih soft */
+
+  /* Warna tema aksen */
+  --purple-primary: #7a6ee0;
+  --purple-secondary: #a099f0;
+  --indigo-primary: #8f87d4;
+
+  /* Card dan border */
+  --card-background: #ffffff;
+  --card-border: #dcddea;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.06), 0 8px 10px -6px rgb(0 0 0 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #ffffff;
+    --foreground: #58508d;
+    --foreground-muted: #8888aa;
+    
+    --purple-primary: #7a6ee0;
+    --purple-secondary: #a099f0;
+    --indigo-primary: #8f87d4;
+
+    --card-background: #ffffff;
+    --card-border: #dcddea;
+ 
+    /* Shadows untuk dark mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-purple-primary: var(--purple-primary);
+  --color-purple-secondary: var(--purple-secondary);
+  --color-indigo-primary: var(--indigo-primary);
+  --color-card-background: var(--card-background);
+  --color-card-border: var(--card-border);
+  --font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--font-geist-mono, ui-monospace, SFMono-Regular, monospace);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#__next {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   background: var(--background);
+  background-attachment: fixed; /* Membuat gradient tetap saat scroll */
+  background-repeat: no-repeat;
+  background-size: 100% 100%; /* Memastikan gradient mengisi seluruh viewport */
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth transition dengan easing */
+  overflow-x: hidden;
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* Memastikan root element juga menggunakan background yang sama */
+#__next,
+.next-app {
+  background: transparent;
+  min-height: 100vh;
+}
+
+/* Styling untuk scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--purple-primary);
+  border-radius: 4px;
+  opacity: 0.3;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  opacity: 0.6;
+}
+
+/* Selection styling */
+::selection {
+  background: var(--purple-primary);
+  color: white;
+}
+
+::-moz-selection {
+  background: var(--purple-primary);
+  color: white;
+}
+
+/* Focus styling untuk accessibility */
+*:focus-visible {
+  outline: 2px solid var(--purple-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Utility classes untuk konsistensi */
+.gradient-text {
+  background: linear-gradient(to right, var(--purple-primary), var(--indigo-primary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-bg {
+  background: linear-gradient(to right, var(--purple-primary), var(--indigo-primary));
+}
+
+.card-style {
+  background: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-lg);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-style:hover {
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-2px);
+}
+
+/* Animation untuk loading states */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Responsive typography */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 641px) {
+  body {
+    font-size: 16px;
+  }
 }

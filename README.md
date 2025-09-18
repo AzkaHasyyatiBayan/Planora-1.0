@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📘 Planora — Smart Task Management Web App
 
-## Getting Started
+**Planora** adalah aplikasi manajemen tugas berbasis web yang dirancang untuk membantu pengguna dalam merencanakan, memprioritaskan, dan menyelesaikan aktivitas harian secara efisien. Aplikasi ini menggabungkan fitur checklist interaktif yang terhubung langsung dengan tampilan kalender untuk memantau produktivitas harian secara visual, serta menerapkan *Eisenhower Matrix* agar pengguna dapat menentukan skala prioritas berdasarkan urgensi dan kepentingan.
 
-First, run the development server:
+Selain itu, Planora dilengkapi dengan algoritma *K-Nearest Neighbors (KNN)* untuk mengklasifikasikan tugas berdasarkan deskripsi, tenggat waktu, dan kategori tertentu, sehingga sistem dapat membantu menyarankan atau menyusun tugas secara lebih cerdas. Fitur statistik produktivitas juga tersedia untuk melacak kemajuan pengguna dari waktu ke waktu.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Planora dibangun menggunakan teknologi modern seperti **React**, **TypeScript**, dan **Tailwind CSS** di sisi frontend, serta **Next.js** (App Router) dan **Mongoose** untuk integrasi backend dan database MongoDB. Sistem login dan manajemen sesi telah diterapkan demi menjaga keamanan data pengguna.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Cara Menggunakan Planora (Jika Clone dari GitHub)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Clone repositori**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   git clone https://github.com/username/planora.git
+   cd planora
+   ```
 
-## Learn More
+2. **Install dependencies**
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   npm install
+   # atau
+   yarn install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Siapkan file `.env.local`** dan isi dengan konfigurasi berikut:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```env
+   MONGODB_URI=your_mongodb_connection_string
+   NEXTAUTH_SECRET=your_secret_key
+   NEXTAUTH_URL=http://localhost:3000
+   ```
 
-## Deploy on Vercel
+4. **Jalankan server pengembangan**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   npm run dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+5. **Akses aplikasi melalui**
+
+   ```
+   http://localhost:3000
+   ```
+
+Planora cocok untuk mahasiswa, freelancer, maupun profesional yang ingin mengelola waktu secara efektif dan terstruktur. Proyek ini masih dalam tahap pengembangan aktif dan terbuka untuk kontribusi. Jika kamu punya ide atau saran, silakan fork repositori dan ajukan *pull request*.
+
+Lisensi: MIT © 2025 Azka Hasyyati Bayan.
