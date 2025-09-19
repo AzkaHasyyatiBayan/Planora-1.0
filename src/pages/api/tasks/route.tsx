@@ -1,42 +1,52 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { Task, PriorityLevel, TaskStatus, TaskCategory } from '@/lib/models/task';
-import connectToDatabase from '@/lib/db';
+import { supabase } from '@/lib/supabaseClient';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  await connectToDatabase();
-
   if (req.method === 'GET') {
     try {
-      const tasks = await Task.find().sort({ createdAt: -1 });
-      res.status(200).json(tasks);
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      res.status(200).json(data);
+    } catch (err) {
+      console.error('Error fetching tasks:', err);
       res.status(500).json({ error: 'Failed to fetch tasks' });
     }
   } else if (req.method === 'POST') {
     try {
-      const { title, description, priority, status, category, important, urgent } = req.body;
+      const { title, description, priority, status, category, important, urgent, due_date } = req.body;
 
       if (!title) {
         return res.status(400).json({ error: 'Title is required' });
       }
 
-      const newTask = new Task({
-        userId: null, // TODO: Replace with actual user ID from auth
-        title,
-        description,
-        priority: priority && Object.values(PriorityLevel).includes(priority) ? priority : PriorityLevel.LOW,
-        status: status && Object.values(TaskStatus).includes(status) ? status : TaskStatus.TODO,
-        category: category && Object.values(TaskCategory).includes(category) ? category : TaskCategory.OTHER,
-        isCompleted: false,
-        important: important || false,
-        urgent: urgent || false,
-      });
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert([
+          {
+            title,
+            description,
+            priority: priority || 'LOW',
+            status: status || 'TODO',
+            category: category || 'OTHER',
+            is_completed: false,
+            important: important || false,
+            urgent: urgent || false,
+            due_date: due_date || null,
+          },
+        ])
+        .select()
+        .single();
 
-      const savedTask = await newTask.save();
-      res.status(201).json(savedTask);
-    } catch (error) {
-      console.error('Error creating task:', error);
+      if (error) return res.status(500).json({ error: error.message });
+
+      res.status(201).json(data);
+    } catch (err) {
+      console.error('Error creating task:', err);
       res.status(500).json({ error: 'Failed to create task' });
     }
   } else {

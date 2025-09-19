@@ -1,113 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Task, PriorityLevel, TaskStatus, TaskCategory } from '@/lib/models/task';
-import connectToDatabase from '@/lib/db';
+import { supabase } from '@/lib/supabaseClient';
 
 interface RouteParams {
-  params: {
-    id: string;
-  };
+  params: { id: string };
 }
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
+// GET task by ID
+export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
-    await connectToDatabase();
-
     const { id } = params;
 
-    if (!id) {
-      return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
-    }
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    const task = await Task.findById(id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 404 });
 
-    if (!task) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(task);
-  } catch (error) {
-    console.error('Error fetching task:', error);
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error('Error fetching task:', err);
     return NextResponse.json({ error: 'Failed to fetch task' }, { status: 500 });
   }
 }
 
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+// UPDATE task by ID
+export async function PUT(req: NextRequest, { params }: RouteParams) {
   try {
-    await connectToDatabase();
-
     const { id } = params;
-    const body = await request.json();
+    const body = await req.json();
 
-    if (!id) {
-      return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
-    }
+    const { data, error } = await supabase
+      .from('tasks')
+      .update(body)
+      .eq('id', id)
+      .select()
+      .single();
 
-    const { title, description, priority, status, category, important, urgent, isCompleted, dueDate } = body;
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-    const updateData: Partial<{
-      title?: string;
-      description?: string;
-      priority?: PriorityLevel;
-      status?: TaskStatus;
-      category?: TaskCategory;
-      important?: boolean;
-      urgent?: boolean;
-      isCompleted?: boolean;
-      completedAt?: Date;
-      dueDate?: Date;
-    }> = {};
-
-    if (title !== undefined) updateData.title = title;
-    if (description !== undefined) updateData.description = description;
-    if (priority !== undefined && Object.values(PriorityLevel).includes(priority)) updateData.priority = priority;
-    if (status !== undefined && Object.values(TaskStatus).includes(status)) updateData.status = status;
-    if (category !== undefined && Object.values(TaskCategory).includes(category)) updateData.category = category;
-    if (important !== undefined) updateData.important = important;
-    if (urgent !== undefined) updateData.urgent = urgent;
-    if (isCompleted !== undefined) {
-      updateData.isCompleted = isCompleted;
-      if (isCompleted) {
-        updateData.completedAt = new Date();
-        updateData.status = TaskStatus.COMPLETED;
-      } else {
-        updateData.completedAt = undefined;
-        updateData.status = TaskStatus.TODO;
-      }
-    }
-    if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : undefined;
-
-    const updatedTask = await Task.findByIdAndUpdate(id, updateData, { new: true });
-
-    if (!updatedTask) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(updatedTask);
-  } catch (error) {
-    console.error('Error updating task:', error);
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error('Error updating task:', err);
     return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+// DELETE task by ID
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
   try {
-    await connectToDatabase();
-
     const { id } = params;
 
-    if (!id) {
-      return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
-    }
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
 
-    const deletedTask = await Task.findByIdAndDelete(id);
-
-    if (!deletedTask) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
     return NextResponse.json({ message: 'Task deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting task:', error);
+  } catch (err) {
+    console.error('Error deleting task:', err);
     return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
   }
 }

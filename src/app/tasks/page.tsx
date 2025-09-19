@@ -4,7 +4,8 @@ import React, { useEffect, useState, ChangeEvent } from 'react';
 import { Eye, Plus, CheckCircle, Search, Moon, Sun, Trash2, Edit3, AlertCircle, Clock, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import TaskForm from '@/components/taskForm';
-import { getAllTasks, ITask, PriorityLevel, TaskStatus } from '@/lib/models/task';
+import { PriorityLevel, TaskStatus } from '@/lib/models/task';
+import { supabase } from '@/lib/supabaseClient'; // Mengubah dari taskService ke supabase
 
 interface Task {
   id: string;
@@ -15,6 +16,8 @@ interface Task {
   status: TaskStatus;
   createdAt: Date;
   updatedAt: Date;
+  important: boolean;
+  urgent: boolean;
 }
 
 const TasksPage = () => {
@@ -28,68 +31,59 @@ const TasksPage = () => {
 
   const router = useRouter();
 
-  // ✅ Ambil data dari backend dan konversi ke Task
   useEffect(() => {
-    const fetchTasks = async () => {
-      setIsLoading(true);
-      try {
-        // Simulasi data untuk development (hapus ketika backend ready)
-        const dummyTasks: Task[] = [
-          {
-            id: '1',
-            title: 'Menyelesaikan laporan bulanan',
-            description: 'Laporan kinerja tim untuk bulan ini',
-            isCompleted: false,
-            priority: PriorityLevel.HIGH,
-            status: TaskStatus.IN_PROGRESS,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          },
-          {
-            id: '2',
-            title: 'Meeting dengan klien',
-            description: 'Diskusi proposal proyek baru',
-            isCompleted: true,
-            priority: PriorityLevel.MEDIUM,
-            status: TaskStatus.COMPLETED,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          },
-          {
-            id: '3',
-            title: 'Review kode sistem',
-            description: 'Code review untuk fitur authentication',
-            isCompleted: false,
-            priority: PriorityLevel.LOW,
-            status: TaskStatus.TODO,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }
-        ];
-        
-        // Ketika backend ready, uncomment dan hapus dummy data
-        // const fetchedTasks = await getAllTasks();
-        // const mappedTasks: Task[] = fetchedTasks.map((task: ITask) => ({
-        //   id: task._id?.toString() || '',
-        //   title: task.title,
-        //   description: task.description,
-        //   isCompleted: task.isCompleted,
-        //   priority: task.priority,
-        //   status: task.status,
-        //   createdAt: new Date(task.createdAt),
-        //   updatedAt: new Date(task.updatedAt)
-        // }));
-        // setTasks(mappedTasks);
-        
-        setTasks(dummyTasks);
-      } catch (error) {
-        console.error('Gagal memuat tugas:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const savedDarkMode = localStorage.getItem('darkMode');
+    const systemDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const darkMode = savedDarkMode ? savedDarkMode === 'true' : systemDarkMode;
+    setIsDarkMode(darkMode);
+    document.documentElement.classList.toggle('dark', darkMode);
+
     fetchTasks();
   }, []);
+
+  const fetchTasks = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      interface SupabaseTask {
+        id: string;
+        title: string;
+        description?: string;
+        is_completed: boolean;
+        priority: PriorityLevel;
+        status: TaskStatus;
+        important: boolean;
+        urgent: boolean;
+        created_at: string;
+        updated_at: string;
+      }
+
+      const mappedTasks: Task[] = (data as SupabaseTask[]).map((task) => ({
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        isCompleted: task.is_completed,
+        priority: task.priority,
+        status: task.status,
+        important: task.important,
+        urgent: task.urgent,
+        createdAt: new Date(task.created_at),
+        updatedAt: new Date(task.updated_at)
+      }));
+
+      setTasks(mappedTasks);
+    } catch (error) {
+      console.error('Gagal memuat tugas:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const mapStatus = (status: string) => {
     switch (status) {
@@ -98,7 +92,7 @@ const TasksPage = () => {
       case 'Sedang Dikerjakan':
         return TaskStatus.IN_PROGRESS;
       case 'Selesai':
-        return TaskStatus.COMPLETED; // Diperbaiki: menggunakan enum yang benar
+        return TaskStatus.COMPLETED;
       case 'Semua':
       default:
         return null;
@@ -120,29 +114,31 @@ const TasksPage = () => {
   };
 
   const filteredTasks = tasks.filter((task) => {
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+    
     const statusFilter = mapStatus(filterStatus);
     const prioritasFilter = mapPrioritas(filterPrioritas);
-    
-    // Diperbaiki: pengecekan status yang lebih konsisten
+
     const matchesStatus = !statusFilter || 
       (statusFilter === TaskStatus.COMPLETED ? task.isCompleted : task.status === statusFilter);
-    const matchesPrioritas = !prioritasFilter || task.priority === prioritasFilter;
     
+    const matchesPrioritas = !prioritasFilter || task.priority === prioritasFilter;
+
     return matchesSearch && matchesStatus && matchesPrioritas;
   });
 
   const getPriorityColor = (priority: PriorityLevel) => {
     switch (priority) {
       case PriorityLevel.HIGH:
-        return 'text-red-600 bg-red-50';
+        return 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-300';
       case PriorityLevel.MEDIUM:
-        return 'text-yellow-600 bg-yellow-50';
+        return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-300';
       case PriorityLevel.LOW:
-        return 'text-green-600 bg-green-50';
+        return 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-300';
       default:
-        return 'text-gray-600 bg-gray-50';
+        return 'text-gray-600 bg-gray-50 dark:bg-gray-800/50 dark:text-gray-300';
     }
   };
 
@@ -159,30 +155,42 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ Handler hapus tugas
   const handleDelete = async (id: string) => {
     try {
-      // TODO: Implementasi API call ke backend
-      // await deleteTask(id);
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
       setTasks(prev => prev.filter(task => task.id !== id));
     } catch (error) {
       console.error('Gagal menghapus tugas:', error);
     }
   };
 
-  // ✅ Handler update status tugas
   const handleUpdate = async (updatedTask: { id: string; completed?: boolean }) => {
     try {
-      // TODO: Implementasi API call ke backend
-      // await updateTask(updatedTask.id, { isCompleted: updatedTask.completed });
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          is_completed: updatedTask.completed,
+          status: updatedTask.completed ? TaskStatus.COMPLETED : TaskStatus.TODO,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', updatedTask.id);
+
+      if (error) throw error;
+
       setTasks(prev =>
         prev.map(task =>
           task.id === updatedTask.id
-            ? { 
-                ...task, 
-                isCompleted: updatedTask.completed ?? task.isCompleted, 
-                status: updatedTask.completed ? TaskStatus.COMPLETED : TaskStatus.TODO, // Diperbaiki: update status juga
-                updatedAt: new Date() 
+            ? {
+                ...task,
+                isCompleted: updatedTask.completed ?? task.isCompleted,
+                status: updatedTask.completed ? TaskStatus.COMPLETED : TaskStatus.TODO,
+                updatedAt: new Date()
               }
             : task
         )
@@ -192,25 +200,45 @@ const TasksPage = () => {
     }
   };
 
-  // ✅ Handler tambah tugas baru
   const handleAddTask = async (newTask: { title: string; description: string; priority?: PriorityLevel }) => {
     try {
-      const taskToAdd: Task = {
-        id: `temp_${Date.now()}`,
+      const taskToAdd = {
         title: newTask.title,
         description: newTask.description,
-        isCompleted: false,
+        is_completed: false,
         priority: newTask.priority || PriorityLevel.LOW,
         status: TaskStatus.TODO,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        important: false,
+        urgent: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
-      
-      // TODO: Implementasi API call ke backend
-      // const createdTask = await createTask(taskToAdd);
-      // setTasks(prev => [createdTask, ...prev]);
-      
-      setTasks(prev => [taskToAdd, ...prev]);
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert([taskToAdd])
+        .select();
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const createdTask = data[0];
+        const mappedTask: Task = {
+          id: createdTask.id,
+          title: createdTask.title,
+          description: createdTask.description,
+          isCompleted: createdTask.is_completed,
+          priority: createdTask.priority,
+          status: createdTask.status,
+          important: createdTask.important,
+          urgent: createdTask.urgent,
+          createdAt: new Date(createdTask.created_at),
+          updatedAt: new Date(createdTask.updated_at)
+        };
+
+        setTasks(prev => [mappedTask, ...prev]);
+      }
+
       setShowForm(false);
     } catch (error) {
       console.error('Gagal menambah tugas:', error);
@@ -220,6 +248,7 @@ const TasksPage = () => {
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
+    localStorage.setItem('darkMode', newMode.toString());
     document.documentElement.classList.toggle('dark', newMode);
   };
 
@@ -231,10 +260,12 @@ const TasksPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${
+        isDarkMode ? 'bg-gray-900' : 'bg-white'
+      }`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Memuat tugas...</p>
+          <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Memuat tugas...</p>
         </div>
       </div>
     );
@@ -242,9 +273,7 @@ const TasksPage = () => {
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${
-      isDarkMode 
-        ? 'bg-gray-900' 
-        : 'bg-white'
+      isDarkMode ? 'bg-gray-900' : 'bg-white'
     }`}>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
@@ -262,20 +291,20 @@ const TasksPage = () => {
               Kelola tugas Anda dengan sistem prioritas dan urgensi yang efektif
             </p>
           </div>
-
+          
           <div className="flex flex-wrap gap-3">
             <button
               onClick={toggleDarkMode}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
-                isDarkMode 
-                  ? 'bg-gray-800 text-gray-200 hover:bg-gray-700' 
+                isDarkMode
+                  ? 'bg-gray-800 text-gray-200 hover:bg-gray-700'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
               {isDarkMode ? 'Light' : 'Dark'}
             </button>
-
+            
             <button
               onClick={() => setShowForm(!showForm)}
               className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl font-medium hover:from-purple-700 hover:to-purple-800 transform hover:scale-105 transition-all duration-200 shadow-lg"
@@ -283,12 +312,12 @@ const TasksPage = () => {
               <Plus size={18} />
               Tambah Tugas
             </button>
-
+            
             <button
               onClick={() => router.push('/matrix')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium border-2 border-purple-600 transition-all duration-200 ${
-                isDarkMode 
-                  ? 'text-purple-400 hover:bg-purple-600 hover:text-white' 
+                isDarkMode
+                  ? 'text-purple-400 hover:bg-purple-600 hover:text-white'
                   : 'text-purple-600 hover:bg-purple-600 hover:text-white'
               }`}
             >
@@ -307,8 +336,8 @@ const TasksPage = () => {
             { label: 'Prioritas Tinggi', value: highPriorityTasks, color: 'red', icon: AlertCircle }
           ].map((stat, index) => (
             <div key={index} className={`p-4 rounded-xl shadow-sm border transition-all duration-200 hover:shadow-md ${
-              isDarkMode 
-                ? 'bg-gray-800 border-gray-700' 
+              isDarkMode
+                ? 'bg-gray-800 border-gray-700'
                 : 'bg-gray-50 border-gray-200'
             }`}>
               <div className="flex items-center justify-between">
@@ -344,20 +373,22 @@ const TasksPage = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={`w-full pl-10 pr-4 py-3 rounded-lg border transition-colors ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-purple-500' 
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-purple-500'
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-purple-500'
                 } focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50`}
               />
             </div>
-
+            
             <div className="flex gap-4 w-full lg:w-auto">
               <select
                 value={filterStatus}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterStatus(e.target.value as any)}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                  setFilterStatus(e.target.value as 'Semua' | 'Belum Dikerjakan' | 'Sedang Dikerjakan' | 'Selesai')
+                }
                 className={`flex-1 lg:w-48 px-4 py-3 rounded-lg border transition-colors ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500' 
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
                     : 'bg-white border-gray-300 text-gray-900 focus:border-purple-500'
                 } focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50`}
               >
@@ -369,10 +400,12 @@ const TasksPage = () => {
 
               <select
                 value={filterPrioritas}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterPrioritas(e.target.value as any)}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                  setFilterPrioritas(e.target.value as 'Semua' | 'Tinggi' | 'Sedang' | 'Rendah')
+                }
                 className={`flex-1 lg:w-48 px-4 py-3 rounded-lg border transition-colors ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500' 
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-purple-500'
                     : 'bg-white border-gray-300 text-gray-900 focus:border-purple-500'
                 } focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50`}
               >
@@ -401,16 +434,14 @@ const TasksPage = () => {
           }`}>
             <CheckCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
             <p className="text-lg font-medium mb-2">
-              {searchTerm || filterStatus !== 'Semua' || filterPrioritas !== 'Semua' 
-                ? 'Tidak ada tugas yang sesuai dengan filter' 
-                : 'Belum ada tugas'
-              }
+              {searchTerm || filterStatus !== 'Semua' || filterPrioritas !== 'Semua'
+                ? 'Tidak ada tugas yang sesuai dengan filter'
+                : 'Belum ada tugas'}
             </p>
             <p className="text-sm">
               {searchTerm || filterStatus !== 'Semua' || filterPrioritas !== 'Semua'
                 ? 'Coba ubah kriteria pencarian atau filter'
-                : 'Klik "Tambah Tugas" untuk membuat tugas pertama Anda'
-              }
+                : 'Klik "Tambah Tugas" untuk membuat tugas pertama Anda'}
             </p>
           </div>
         ) : (
@@ -461,8 +492,8 @@ const TasksPage = () => {
                     <button
                       onClick={() => {/* TODO: Implementasi edit */}}
                       className={`p-2 rounded-lg transition-colors ${
-                        isDarkMode 
-                          ? 'text-gray-400 hover:text-purple-400 hover:bg-gray-700' 
+                        isDarkMode
+                          ? 'text-gray-400 hover:text-purple-400 hover:bg-gray-700'
                           : 'text-gray-500 hover:text-purple-600 hover:bg-purple-50'
                       }`}
                     >
@@ -471,8 +502,8 @@ const TasksPage = () => {
                     <button
                       onClick={() => handleDelete(task.id)}
                       className={`p-2 rounded-lg transition-colors ${
-                        isDarkMode 
-                          ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700' 
+                        isDarkMode
+                          ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
                           : 'text-gray-500 hover:text-red-600 hover:bg-red-50'
                       }`}
                     >

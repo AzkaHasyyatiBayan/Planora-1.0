@@ -1,13 +1,21 @@
 'use client'
 import { useState, FormEvent } from 'react'
 import { Mail, Lock, Eye, EyeOff, User, AlertCircle, CheckCircle } from 'lucide-react'
+import { supabase } from '@/lib/supabaseClient'
+import { useRouter } from 'next/navigation'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
-  onSubmit?: (data: { email: string; password: string; name?: string }) => void
+  onSuccess?: () => void
+  onError?: (error: string) => void
 }
 
-export default function AuthForm({ mode, onSubmit }: AuthFormProps) {
+interface AuthError {
+  message: string;
+  status?: number;
+}
+
+export default function AuthForm({ mode, onSuccess, onError }: AuthFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,6 +26,7 @@ export default function AuthForm({ mode, onSubmit }: AuthFormProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [errors, setErrors] = useState<{[key: string]: string}>({})
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {}
@@ -60,18 +69,83 @@ export default function AuthForm({ mode, onSubmit }: AuthFormProps) {
 
     setIsLoading(true)
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    if (onSubmit) {
-      onSubmit({
-        email: formData.email,
-        password: formData.password,
-        ...(mode === 'register' && { name: formData.name })
-      })
+    try {
+      if (mode === 'register') {
+        // Register new user
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              name: formData.name,
+            }
+          }
+        })
+
+        if (error) throw error
+
+        if (data.user) {
+          // Create user profile in database
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: data.user.id,
+                name: formData.name,
+                email: formData.email,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }
+            ])
+
+          if (profileError) {
+            console.error('Error creating profile:', profileError)
+          }
+
+          if (onSuccess) onSuccess()
+          if (onError) onError('')
+          alert('Registrasi berhasil! Silakan cek email Anda untuk verifikasi.')
+        }
+      } else {
+        // Login existing user
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        })
+
+        if (error) throw error
+
+        if (data.user) {
+          if (onSuccess) onSuccess()
+          if (onError) onError('')
+          router.push('/tasks')
+        }
+      }
+    } catch (error: unknown) {
+      console.error('Auth error:', error)
+      
+      let errorMessage = 'Terjadi kesalahan saat autentikasi'
+      
+      // Type guard untuk memeriksa apakah error memiliki property message
+      if (error && typeof error === 'object' && 'message' in error) {
+        const authError = error as AuthError;
+        
+        if (authError.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email atau password salah'
+        } else if (authError.message.includes('Email not confirmed')) {
+          errorMessage = 'Email belum diverifikasi. Silakan cek email Anda'
+        } else if (authError.message.includes('User already registered')) {
+          errorMessage = 'Email sudah terdaftar'
+        } else if (authError.message.includes('Password should be at least 6 characters')) {
+          errorMessage = 'Password minimal 6 karakter'
+        }
+      }
+
+      if (onError) onError(errorMessage)
+      setErrors({ submit: errorMessage })
+    } finally {
+      setIsLoading(false)
     }
-    
-    setIsLoading(false)
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -79,6 +153,9 @@ export default function AuthForm({ mode, onSubmit }: AuthFormProps) {
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
+    }
+    if (errors.submit) {
+      setErrors(prev => ({ ...prev, submit: '' }))
     }
   }
 
@@ -92,8 +169,38 @@ export default function AuthForm({ mode, onSubmit }: AuthFormProps) {
 
   const passwordStrength = getPasswordStrength(formData.password)
 
+  const handleForgotPassword = async () => {
+    if (!formData.email) {
+      setErrors({ submit: 'Masukkan email untuk reset password' })
+      return
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      })
+
+      if (error) throw error
+
+      alert('Email reset password telah dikirim. Silakan cek inbox Anda.')
+    } catch (error: unknown) {
+      console.error('Reset password error:', error)
+      setErrors({ submit: 'Gagal mengirim email reset password' })
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Error Message */}
+      {errors.submit && (
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            {errors.submit}
+          </p>
+        </div>
+      )}
+
       {/* Name Field (Register only) */}
       {mode === 'register' && (
         <div className="space-y-2">
@@ -278,6 +385,7 @@ export default function AuthForm({ mode, onSubmit }: AuthFormProps) {
           </label>
           <button
             type="button"
+            onClick={handleForgotPassword}
             className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
           >
             Lupa password?

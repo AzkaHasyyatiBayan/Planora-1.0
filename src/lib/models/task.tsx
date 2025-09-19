@@ -1,326 +1,166 @@
-import mongoose, { Schema, Document, Model } from 'mongoose'
-
-/**
- * ENUMS
- */
 export enum PriorityLevel {
-  LOW = 'low',
-  MEDIUM = 'medium',
-  HIGH = 'high',
-  URGENT = 'urgent'
+  HIGH = 'HIGH',
+  MEDIUM = 'MEDIUM',
+  LOW = 'LOW'
 }
 
 export enum TaskStatus {
-  TODO = 'todo',
-  IN_PROGRESS = 'in_progress',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled'
+  TODO = 'TODO',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED'
 }
 
-export enum TaskCategory {
-  WORK = 'work',
-  PERSONAL = 'personal',
-  STUDY = 'study',
-  HEALTH = 'health',
-  SHOPPING = 'shopping',
-  OTHER = 'other'
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  isCompleted: boolean;
+  priority: PriorityLevel;
+  status: TaskStatus;
+  important: boolean;
+  urgent: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-/**
- * INTERFACES
- */
-export interface ISubTask {
-  _id?: mongoose.Types.ObjectId
-  title: string
-  isCompleted: boolean
-  completedAt?: Date
-  createdAt: Date
+export interface TaskFormData {
+  title: string;
+  description?: string;
+  priority: PriorityLevel;
+  important?: boolean;
+  urgent?: boolean;
 }
 
-export interface IAttachment {
-  _id?: mongoose.Types.ObjectId
-  filename: string
-  originalName: string
-  mimeType: string
-  size: number
-  url: string
-  uploadedAt: Date
+export interface TaskFilters {
+  searchTerm?: string;
+  status?: TaskStatus;
+  priority?: PriorityLevel;
+  important?: boolean;
+  urgent?: boolean;
 }
 
-export interface IReminder {
-  _id?: mongoose.Types.ObjectId
-  type: 'email' | 'push' | 'sms'
-  reminderTime: Date
-  message?: string
-  isActive: boolean
-  isSent: boolean
-  sentAt?: Date
-  createdAt: Date
+export interface TaskStats {
+  total: number;
+  completed: number;
+  pending: number;
+  highPriority: number;
+  importantUrgent: number;
+  importantNotUrgent: number;
+  notImportantUrgent: number;
+  notImportantNotUrgent: number;
 }
 
-export interface ITask extends Document {
-  userId: mongoose.Types.ObjectId
-  title: string
-  description?: string
-  dueDate?: Date
-  priority: PriorityLevel
-  status: TaskStatus
-  category: TaskCategory
-  isCompleted: boolean
-  completedAt?: Date
-  estimatedDuration?: number
-  actualDuration?: number
-  tags?: string[]
-  subtasks?: ISubTask[]
-  attachments?: IAttachment[]
-  reminders?: IReminder[]
-  important: boolean
-  urgent: boolean
-  createdAt: Date
-  updatedAt: Date
+// Helper functions
+export const getPriorityLabel = (priority: PriorityLevel): string => {
+  switch (priority) {
+    case PriorityLevel.HIGH:
+      return 'Tinggi';
+    case PriorityLevel.MEDIUM:
+      return 'Sedang';
+    case PriorityLevel.LOW:
+      return 'Rendah';
+    default:
+      return 'Tidak Diketahui';
+  }
+};
 
-  markAsCompleted(): Promise<ITask>
-  markAsIncomplete(): Promise<ITask>
-  isOverdue(): boolean
-  getDaysUntilDue(): number | null
-  addSubtask(subtask: Partial<ISubTask>): Promise<ITask>
-  removeSubtask(subtaskId: string): Promise<ITask>
-  getCompletionPercentage(): number
-  addReminder(reminder: Partial<IReminder>): Promise<ITask>
-}
+export const getStatusLabel = (status: TaskStatus): string => {
+  switch (status) {
+    case TaskStatus.TODO:
+      return 'Belum Dikerjakan';
+    case TaskStatus.IN_PROGRESS:
+      return 'Sedang Dikerjakan';
+    case TaskStatus.COMPLETED:
+      return 'Selesai';
+    default:
+      return 'Tidak Diketahui';
+  }
+};
 
-export interface ITaskStatistics {
-  total: number
-  completed: number
-  pending: number
-  overdue: number
-  byPriority: Record<PriorityLevel, number>
-  byCategory: Record<TaskCategory, number>
-  byStatus: Record<TaskStatus, number>
-  completionRate: number
-  averageDuration: number | null
-}
+export const getPriorityColor = (priority: PriorityLevel): string => {
+  switch (priority) {
+    case PriorityLevel.HIGH:
+      return 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-300';
+    case PriorityLevel.MEDIUM:
+      return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-300';
+    case PriorityLevel.LOW:
+      return 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-300';
+    default:
+      return 'text-gray-600 bg-gray-50 dark:bg-gray-800/50 dark:text-gray-300';
+  }
+};
 
-export interface ITaskModel extends Model<ITask> {
-  findByUserId(userId: string): Promise<ITask[]>
-  findOverdueTasks(userId?: string): Promise<ITask[]>
-  findByPriority(priority: PriorityLevel, userId?: string): Promise<ITask[]>
-  findByStatus(status: TaskStatus, userId?: string): Promise<ITask[]>
-  findByCategory(category: TaskCategory, userId?: string): Promise<ITask[]>
-  getTaskStatistics(userId: string): Promise<ITaskStatistics>
-  findTasksDueToday(userId?: string): Promise<ITask[]>
-  findTasksDueThisWeek(userId?: string): Promise<ITask[]>
-  searchTasks(query: string, userId?: string): Promise<ITask[]>
-}
+export const getStatusColor = (status: TaskStatus): string => {
+  switch (status) {
+    case TaskStatus.TODO:
+      return 'text-gray-600 bg-gray-50 dark:bg-gray-800/50 dark:text-gray-300';
+    case TaskStatus.IN_PROGRESS:
+      return 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-300';
+    case TaskStatus.COMPLETED:
+      return 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-300';
+    default:
+      return 'text-gray-600 bg-gray-50 dark:bg-gray-800/50 dark:text-gray-300';
+  }
+};
 
-/**
- * SCHEMAS
- */
-const SubTaskSchema = new Schema<ISubTask>({
-  title: { type: String, required: true },
-  isCompleted: { type: Boolean, default: false },
-  completedAt: { type: Date },
-  createdAt: { type: Date, default: Date.now }
-})
+// Validation functions
+export const validateTask = (task: Partial<TaskFormData>): string[] => {
+  const errors: string[] = [];
 
-const AttachmentSchema = new Schema<IAttachment>({
-  filename: { type: String, required: true },
-  originalName: { type: String, required: true },
-  mimeType: { type: String, required: true },
-  size: { type: Number, required: true },
-  url: { type: String, required: true },
-  uploadedAt: { type: Date, default: Date.now }
-})
-
-const ReminderSchema = new Schema<IReminder>({
-  type: { type: String, enum: ['email', 'push', 'sms'], required: true },
-  reminderTime: { type: Date, required: true },
-  message: { type: String },
-  isActive: { type: Boolean, default: true },
-  isSent: { type: Boolean, default: false },
-  sentAt: { type: Date },
-  createdAt: { type: Date, default: Date.now }
-})
-
-const TaskSchema = new Schema<ITask>({
-  userId: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
-  title: { type: String, required: true },
-  description: String,
-  dueDate: Date,
-  priority: { type: String, enum: Object.values(PriorityLevel), default: PriorityLevel.LOW },
-  status: { type: String, enum: Object.values(TaskStatus), default: TaskStatus.TODO },
-  category: { type: String, enum: Object.values(TaskCategory), default: TaskCategory.OTHER },
-  isCompleted: { type: Boolean, default: false },
-  completedAt: Date,
-  estimatedDuration: Number,
-  actualDuration: Number,
-  tags: [String],
-  subtasks: [SubTaskSchema],
-  attachments: [AttachmentSchema],
-  reminders: [ReminderSchema],
-  important: { type: Boolean, default: false },
-  urgent: { type: Boolean, default: false }
-}, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
-})
-
-/**
- * VIRTUALS
- */
-TaskSchema.virtual('eisenhowerQuadrant').get(function (this: ITask) {
-  if (this.important && this.urgent) return 'do'
-  if (this.important && !this.urgent) return 'decide'
-  if (!this.important && this.urgent) return 'delegate'
-  return 'delete'
-})
-
-/**
- * INSTANCE METHODS
- */
-TaskSchema.methods.markAsCompleted = function () {
-  this.isCompleted = true
-  this.completedAt = new Date()
-  this.status = TaskStatus.COMPLETED
-  return this.save()
-}
-
-TaskSchema.methods.markAsIncomplete = function () {
-  this.isCompleted = false
-  this.completedAt = undefined
-  this.status = TaskStatus.TODO
-  return this.save()
-}
-
-TaskSchema.methods.isOverdue = function () {
-  return !!this.dueDate && !this.isCompleted && new Date() > this.dueDate
-}
-
-TaskSchema.methods.getDaysUntilDue = function () {
-  if (!this.dueDate) return null
-  return Math.ceil((this.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-}
-
-TaskSchema.methods.getCompletionPercentage = function () {
-  const total = this.subtasks?.length || 0
-  const done = this.subtasks?.filter((sub: ISubTask) => sub.isCompleted).length || 0
-  return total ? Math.round((done / total) * 100) : this.isCompleted ? 100 : 0
-}
-
-TaskSchema.methods.addSubtask = function (subtask: Partial<ISubTask>) {
-  this.subtasks?.push({
-    title: subtask.title!,
-    isCompleted: subtask.isCompleted ?? false,
-    createdAt: new Date()
-  })
-  return this.save()
-}
-
-TaskSchema.methods.removeSubtask = function (subtaskId: string) {
-  this.subtasks = this.subtasks?.filter((sub: ISubTask) => sub._id?.toString() !== subtaskId)
-  return this.save()
-}
-
-TaskSchema.methods.addReminder = function (reminder: Partial<IReminder>) {
-  this.reminders?.push({
-    type: reminder.type!,
-    reminderTime: reminder.reminderTime!,
-    isActive: reminder.isActive ?? true,
-    isSent: false,
-    createdAt: new Date()
-  })
-  return this.save()
-}
-
-/**
- * STATIC METHODS
- */
-TaskSchema.statics.findByUserId = function (userId: string) {
-  return this.find({ userId }).sort({ createdAt: -1 })
-}
-
-TaskSchema.statics.findOverdueTasks = function (userId?: string) {
-  const query = { isCompleted: false, dueDate: { $lt: new Date() } }
-  if (userId) Object.assign(query, { userId })
-  return this.find(query)
-}
-
-TaskSchema.statics.getTaskStatistics = async function (userId: string) {
-  const tasks: ITask[] = await this.find({ userId })
-  const stats: ITaskStatistics = {
-    total: tasks.length,
-    completed: tasks.filter(t => t.isCompleted).length,
-    pending: tasks.filter(t => !t.isCompleted).length,
-    overdue: tasks.filter(t => t.isOverdue()).length,
-    byPriority: {
-      [PriorityLevel.LOW]: 0,
-      [PriorityLevel.MEDIUM]: 0,
-      [PriorityLevel.HIGH]: 0,
-      [PriorityLevel.URGENT]: 0
-    },
-    byCategory: {
-      [TaskCategory.WORK]: 0,
-      [TaskCategory.PERSONAL]: 0,
-      [TaskCategory.STUDY]: 0,
-      [TaskCategory.HEALTH]: 0,
-      [TaskCategory.SHOPPING]: 0,
-      [TaskCategory.OTHER]: 0
-    },
-    byStatus: {
-      [TaskStatus.TODO]: 0,
-      [TaskStatus.IN_PROGRESS]: 0,
-      [TaskStatus.COMPLETED]: 0,
-      [TaskStatus.CANCELLED]: 0
-    },
-    completionRate: 0,
-    averageDuration: null
+  if (!task.title || task.title.trim().length === 0) {
+    errors.push('Judul tugas wajib diisi');
   }
 
-  for (const task of tasks) {
-    stats.byPriority[task.priority]++
-    stats.byCategory[task.category]++
-    stats.byStatus[task.status]++
+  if (task.title && task.title.trim().length > 200) {
+    errors.push('Judul tugas maksimal 200 karakter');
   }
 
-  stats.completionRate = stats.total ? Math.round((stats.completed / stats.total) * 100) : 0
-  const withDur = tasks.filter(t => t.actualDuration)
-  if (withDur.length)
-    stats.averageDuration = Math.round(withDur.reduce((sum, t) => sum + (t.actualDuration ?? 0), 0) / withDur.length)
-
-  return stats
-}
-
-/**
- * SAFE MODEL CREATION - Fixed the issue here
- */
-let Task: ITaskModel
-
-// Check if we're in a browser environment
-if (typeof window !== 'undefined') {
-  // In browser, create a mock model or handle gracefully
-  Task = {} as ITaskModel
-} else {
-  // In server environment, create the actual model
-  try {
-    Task = (mongoose.models?.Task || mongoose.model<ITask, ITaskModel>('Task', TaskSchema)) as ITaskModel
-  } catch (error) {
-    console.error('Error creating Task model:', error)
-    Task = {} as ITaskModel
+  if (task.description && task.description.length > 1000) {
+    errors.push('Deskripsi tugas maksimal 1000 karakter');
   }
-}
 
-export { Task }
+  return errors;
+};
 
-export const getAllTasks = async (): Promise<ITask[]> => {
-  try {
-    if (typeof window !== 'undefined') {
-      // In browser, return empty array or handle API call
-      return []
-    }
-    return await Task.find().sort({ createdAt: -1 })
-  } catch (error) {
-    console.error('Error getting all tasks:', error)
-    return []
-  }
-}
+// Task classification for Eisenhower Matrix
+export const classifyTask = (task: Task): string => {
+  if (task.important && task.urgent) return 'importantUrgent';
+  if (task.important && !task.urgent) return 'importantNotUrgent';
+  if (!task.important && task.urgent) return 'notImportantUrgent';
+  return 'notImportantNotUrgent';
+};
+
+// Calculate task statistics
+export const calculateTaskStats = (tasks: Task[]): TaskStats => {
+  const total = tasks.length;
+  const completed = tasks.filter(task => task.isCompleted).length;
+  const pending = total - completed;
+  const highPriority = tasks.filter(task => task.priority === PriorityLevel.HIGH && !task.isCompleted).length;
+  
+  const importantUrgent = tasks.filter(task => 
+    task.important && task.urgent && !task.isCompleted
+  ).length;
+  
+  const importantNotUrgent = tasks.filter(task => 
+    task.important && !task.urgent && !task.isCompleted
+  ).length;
+  
+  const notImportantUrgent = tasks.filter(task => 
+    !task.important && task.urgent && !task.isCompleted
+  ).length;
+  
+  const notImportantNotUrgent = tasks.filter(task => 
+    !task.important && !task.urgent && !task.isCompleted
+  ).length;
+
+  return {
+    total,
+    completed,
+    pending,
+    highPriority,
+    importantUrgent,
+    importantNotUrgent,
+    notImportantUrgent,
+    notImportantNotUrgent
+  };
+};

@@ -2,8 +2,31 @@
 import AuthForm from '@/components/authForm'
 import { LogIn, Sparkles, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabaseClient'
 
 export default function LoginPage() {
+  // Handler untuk login dengan Google
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+      },
+    })
+    if (error) console.error('Google login error:', error.message)
+  }
+
+  // Handler untuk login dengan GitHub
+  const handleGithubLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+      },
+    })
+    if (error) console.error('GitHub login error:', error.message)
+  }
+
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] transition-all flex items-center justify-center px-4">
       <div className="w-full max-w-md">
@@ -40,6 +63,7 @@ export default function LoginPage() {
 
           {/* Form Section */}
           <div className="px-8 py-8">
+            {/* Form login pakai email & password */}
             <AuthForm mode="login" />
             
             {/* Divider */}
@@ -51,12 +75,18 @@ export default function LoginPage() {
 
             {/* Social Login Buttons */}
             <div className="space-y-3">
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[var(--card-border)] rounded-xl hover:bg-[var(--card-background)] hover:shadow-md transition-all duration-200">
+              <button 
+                onClick={handleGoogleLogin}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[var(--card-border)] rounded-xl hover:bg-[var(--card-background)] hover:shadow-md transition-all duration-200"
+              >
                 <div className="w-5 h-5 bg-gradient-to-r from-blue-500 to-blue-600 rounded"></div>
                 <span className="text-[var(--foreground)]">Lanjutkan dengan Google</span>
               </button>
               
-              <button className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[var(--card-border)] rounded-xl hover:bg-[var(--card-background)] hover:shadow-md transition-all duration-200">
+              <button 
+                onClick={handleGithubLogin}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-[var(--card-border)] rounded-xl hover:bg-[var(--card-background)] hover:shadow-md transition-all duration-200"
+              >
                 <div className="w-5 h-5 bg-gradient-to-r from-gray-800 to-gray-900 rounded"></div>
                 <span className="text-[var(--foreground)]">Lanjutkan dengan GitHub</span>
               </button>

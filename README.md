@@ -4,7 +4,9 @@
 
 Selain itu, Planora dilengkapi dengan algoritma *K-Nearest Neighbors (KNN)* untuk mengklasifikasikan tugas berdasarkan deskripsi, tenggat waktu, dan kategori tertentu, sehingga sistem dapat membantu menyarankan atau menyusun tugas secara lebih cerdas. Fitur statistik produktivitas juga tersedia untuk melacak kemajuan pengguna dari waktu ke waktu.
 
-Planora dibangun menggunakan teknologi modern seperti **React**, **TypeScript**, dan **Tailwind CSS** di sisi frontend, serta **Next.js** (App Router) dan **Mongoose** untuk integrasi backend dan database MongoDB. Sistem login dan manajemen sesi telah diterapkan demi menjaga keamanan data pengguna.
+Planora dibangun menggunakan teknologi modern seperti **React**, **TypeScript**, dan **CSS** di sisi frontend, serta **Next.js** (App Router) dengan **Supabase** sebagai backend untuk autentikasi, database, dan integrasi real-time. Sistem login dan manajemen sesi memanfaatkan layanan Supabase demi menjaga keamanan data pengguna.
+
+---
 
 ## 🚀 Cara Menggunakan Planora (Jika Clone dari GitHub)
 
@@ -26,7 +28,8 @@ Planora dibangun menggunakan teknologi modern seperti **React**, **TypeScript**,
 3. **Siapkan file `.env.local`** dan isi dengan konfigurasi berikut:
 
    ```env
-   MONGODB_URI=your_mongodb_connection_string
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
    NEXTAUTH_SECRET=your_secret_key
    NEXTAUTH_URL=http://localhost:3000
    ```
@@ -43,6 +46,6 @@ Planora dibangun menggunakan teknologi modern seperti **React**, **TypeScript**,
    http://localhost:3000
    ```
 
-Planora cocok untuk mahasiswa, freelancer, maupun profesional yang ingin mengelola waktu secara efektif dan terstruktur. Proyek ini masih dalam tahap pengembangan aktif dan terbuka untuk kontribusi. Jika kamu punya ide atau saran, silakan fork repositori dan ajukan *pull request*.
+---
 
-Lisensi: MIT © 2025 Azka Hasyyati Bayan.
+Lisensi: MIT © 2025 Kelompok 2
