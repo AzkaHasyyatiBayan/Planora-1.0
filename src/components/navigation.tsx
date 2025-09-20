@@ -38,6 +38,7 @@ export default function Navigation() {
     { path: '/', label: 'Beranda', icon: Home },
     { path: '/tasks', label: 'Tugas', icon: CheckSquare },
     { path: '/matrix', label: 'Matrix', icon: Grid3X3 },
+    { path: '/calendertrack', label: 'Kalender', icon: Grid3X3 },
     { path: isLoggedIn ? '/account' : '/login', label: 'Akun', icon: User }
   ]
 
