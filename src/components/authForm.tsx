@@ -2,7 +2,7 @@
 import { useState, FormEvent } from 'react'
 import { Mail, Lock, Eye, EyeOff, User, AlertCircle, CheckCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'next/navigation'
+import { useAuth } from '@/context/authContext'
 
 interface AuthFormProps {
   mode: 'login' | 'register'
@@ -26,7 +26,7 @@ export default function AuthForm({ mode, onSuccess, onError }: AuthFormProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [errors, setErrors] = useState<{[key: string]: string}>({})
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const { signIn } = useAuth()
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {}
@@ -107,19 +107,14 @@ export default function AuthForm({ mode, onSuccess, onError }: AuthFormProps) {
           alert('Registrasi berhasil! Silakan cek email Anda untuk verifikasi.')
         }
       } else {
-        // Login existing user
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        })
+        // Login existing user - use context method
+        const { error } = await signIn(formData.email, formData.password)
 
         if (error) throw error
 
-        if (data.user) {
-          if (onSuccess) onSuccess()
-          if (onError) onError('')
-          router.push('/tasks')
-        }
+        // Success - the auth context will handle the redirect
+        if (onSuccess) onSuccess()
+        if (onError) onError('')
       }
     } catch (error: unknown) {
       console.error('Auth error:', error)

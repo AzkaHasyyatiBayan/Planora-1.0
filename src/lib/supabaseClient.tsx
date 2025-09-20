@@ -1,4 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs";
+// Perbaikan 1: Impor tipe payload dari Supabase
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -7,7 +9,29 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Supabase credentials are missing in .env.local");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createPagesBrowserClient();
+
+// Types untuk Profile
+export interface Profile {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProfileInsert {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url?: string;
+}
+
+export interface ProfileUpdate {
+  name?: string;
+  avatar_url?: string;
+}
 
 // Types untuk Task
 export interface Task {
@@ -55,9 +79,102 @@ export interface DisplayTask {
   updatedAt: Date;
 }
 
-// Task service dengan typed operations
+// --- SERVICES ---
+
+// Profile service
+export const profileService = {
+  // Get profile by user ID
+  async getProfile(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // Abaikan error jika profil tidak ditemukan
+      console.error('Error fetching profile:', error);
+      throw error;
+    }
+    return data as Profile | null;
+  },
+
+  // Create or update profile
+  async upsertProfile(profileData: ProfileInsert) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({
+        ...profileData,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'id'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error upserting profile:', error);
+      throw error;
+    }
+    return data as Profile;
+  },
+
+  // Update profile
+  async updateProfile(userId: string, updates: ProfileUpdate) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
+    return data as Profile;
+  },
+
+  // Upload avatar
+  async uploadAvatar(userId: string, file: File) {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const filePath = `public/${fileName}`;
+
+    const { error } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file);
+
+    if (error) {
+      console.error('Error uploading avatar:', error);
+      throw error;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  },
+
+  // Delete old avatar
+  async deleteAvatar(filePath: string) {
+    const { error } = await supabase.storage
+      .from('avatars')
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Error deleting avatar:', error);
+    }
+    return !error;
+  }
+};
+
+// Task service
 export const taskService = {
-  // Get all tasks dengan filter opsional
+  // Get all tasks
   async getTasks(filters?: {
     status?: string;
     priority?: string;
@@ -70,29 +187,14 @@ export const taskService = {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (filters?.status) {
-      query = query.eq('status', filters.status);
-    }
-    if (filters?.priority) {
-      query = query.eq('priority', filters.priority);
-    }
-    if (filters?.important !== undefined) {
-      query = query.eq('important', filters.important);
-    }
-    if (filters?.urgent !== undefined) {
-      query = query.eq('urgent', filters.urgent);
-    }
-    if (filters?.is_completed !== undefined) {
-      query = query.eq('is_completed', filters.is_completed);
-    }
+    if (filters?.status) query = query.eq('status', filters.status);
+    if (filters?.priority) query = query.eq('priority', filters.priority);
+    if (filters?.important !== undefined) query = query.eq('important', filters.important);
+    if (filters?.urgent !== undefined) query = query.eq('urgent', filters.urgent);
+    if (filters?.is_completed !== undefined) query = query.eq('is_completed', filters.is_completed);
 
     const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching tasks:', error);
-      throw error;
-    }
-    
+    if (error) throw error;
     return data as Task[];
   },
 
@@ -103,12 +205,7 @@ export const taskService = {
       .select('*')
       .eq('id', id)
       .single();
-
-    if (error) {
-      console.error('Error fetching task:', error);
-      throw error;
-    }
-    
+    if (error) throw error;
     return data as Task;
   },
 
@@ -116,133 +213,67 @@ export const taskService = {
   async createTask(taskData: TaskInsert) {
     const { data, error } = await supabase
       .from('tasks')
-      .insert([{
-        ...taskData,
-        is_completed: false,
-        status: 'TODO',
-        priority: taskData.priority || 'LOW',
-        important: taskData.important || false,
-        urgent: taskData.urgent || false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }])
-      .select();
-
-    if (error) {
-      console.error('Error creating task:', error);
-      throw error;
-    }
-    
-    return data[0] as Task;
+      .insert([{ ...taskData }])
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Task;
   },
 
   // Update task
   async updateTask(id: string, updates: TaskUpdate) {
     const { data, error } = await supabase
       .from('tasks')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
+      .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id)
-      .select();
-
-    if (error) {
-      console.error('Error updating task:', error);
-      throw error;
-    }
-    
-    return data[0] as Task;
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Task;
   },
 
   // Delete task
   async deleteTask(id: string) {
-    const { error } = await supabase
-      .from('tasks')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting task:', error);
-      throw error;
-    }
-    
+    const { error } = await supabase.from('tasks').delete().eq('id', id);
+    if (error) throw error;
     return true;
   },
+};
 
-  // Toggle task completion
-  async toggleTaskCompletion(id: string, completed: boolean) {
-    const { data, error } = await supabase
-      .from('tasks')
-      .update({
-        is_completed: completed,
-        status: completed ? 'COMPLETED' : 'TODO',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select();
-
-    if (error) {
-      console.error('Error toggling task completion:', error);
-      throw error;
-    }
-    
-    return data[0] as Task;
+// Auth service
+export const authService = {
+  async signIn(email: string, password: string) {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data;
   },
 
-  // Search tasks
-  async searchTasks(searchTerm: string) {
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error searching tasks:', error);
-      throw error;
-    }
-    
-    return data as Task[];
+  async signUp(email: string, password: string, name: string) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } }
+    });
+    if (error) throw error;
+    return data;
   },
 
-  // Get tasks for Eisenhower Matrix
-  async getEisenhowerMatrix() {
-    const { data, error } = await supabase
-      .from('eisenhower_matrix')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching Eisenhower matrix:', error);
-      throw error;
-    }
-    
-    return data as (Task & { quadrant: string })[];
+  async signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   },
 
-  // Get task statistics
-  async getTaskStatistics() {
-    const { data, error } = await supabase
-      .rpc('get_task_statistics');
-
-    if (error) {
-      console.error('Error fetching task statistics:', error);
-      throw error;
-    }
-    
-    return data[0] as {
-      total_tasks: number;
-      completed_tasks: number;
-      pending_tasks: number;
-      high_priority_tasks: number;
-      important_urgent_tasks: number;
-    };
+  async getCurrentUser() {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
   }
 };
 
-// Real-time subscriptions
-export const subscribeToTasks = (callback: (payload: unknown) => void) => {
+
+// --- REAL-TIME SUBSCRIPTIONS ---
+
+// Perbaikan 2: Ganti 'any' dengan tipe yang spesifik
+export const subscribeToTasks = (callback: (payload: RealtimePostgresChangesPayload<Task>) => void) => {
   return supabase
     .channel('tasks_changes')
     .on('postgres_changes', {
@@ -253,7 +284,22 @@ export const subscribeToTasks = (callback: (payload: unknown) => void) => {
     .subscribe();
 };
 
-// Helper functions
+// Perbaikan 3: Ganti 'any' dengan tipe yang spesifik
+export const subscribeToProfile = (userId: string, callback: (payload: RealtimePostgresChangesPayload<Profile>) => void) => {
+  return supabase
+    .channel(`profile_changes_for_${userId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'profiles',
+      filter: `id=eq.${userId}` // <-- Hanya dengarkan perubahan untuk user ini
+    }, callback)
+    .subscribe();
+};
+
+
+// --- HELPER FUNCTIONS ---
+
 export const formatTaskForDisplay = (task: Task): DisplayTask => ({
   id: task.id,
   title: task.title,
@@ -279,36 +325,3 @@ export const formatTaskForDatabase = (task: DisplayTask): Partial<Task> => ({
   created_at: task.createdAt.toISOString(),
   updated_at: task.updatedAt.toISOString()
 });
-
-// Auth functions
-export const authService = {
-  async signIn(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) throw error;
-    return data;
-  },
-
-  async signUp(email: string, password: string) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password
-    });
-
-    if (error) throw error;
-    return data;
-  },
-
-  async signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-  },
-
-  async getCurrentUser() {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
-  }
-};

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 
 export default function LoginPage() {
-  // Handler untuk login dengan Google
+ 
   const handleGoogleLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -16,7 +16,6 @@ export default function LoginPage() {
     if (error) console.error('Google login error:', error.message)
   }
 
-  // Handler untuk login dengan GitHub
   const handleGithubLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',

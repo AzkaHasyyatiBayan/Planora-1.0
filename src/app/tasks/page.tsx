@@ -202,14 +202,35 @@ const TasksPage = () => {
 
   const handleAddTask = async (newTask: { title: string; description: string; priority?: PriorityLevel }) => {
     try {
+      const priority = newTask.priority || PriorityLevel.LOW;
+
+      // Map priority to important/urgent for Eisenhower Matrix
+      let important = false;
+      let urgent = false;
+
+      switch (priority) {
+        case PriorityLevel.HIGH:
+          important = true;
+          urgent = true;
+          break;
+        case PriorityLevel.MEDIUM:
+          important = true;
+          urgent = false;
+          break;
+        case PriorityLevel.LOW:
+          important = false;
+          urgent = false;
+          break;
+      }
+
       const taskToAdd = {
         title: newTask.title,
         description: newTask.description,
         is_completed: false,
-        priority: newTask.priority || PriorityLevel.LOW,
+        priority: priority,
         status: TaskStatus.TODO,
-        important: false,
-        urgent: false,
+        important: important,
+        urgent: urgent,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
